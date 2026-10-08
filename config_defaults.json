@@ -1,0 +1,103 @@
+{
+    "project": {
+        "name": "RA3 Crystallography"
+    },
+    "search": {
+        "root_dirs": [
+            "path/to/data"
+        ],
+        "search_string": "RA3",
+        "case_sensitive": false,
+        "recursion_depth": 1,
+        "max_folders": null
+    },
+    "output": {
+        "output_dir": "path/to/output",
+        "output_prefix": "SEARCH_STRING + '_summary'",
+        "add_timestamp_to_filename": true,
+        "timestamp_format": "%d%m%y%H%M"
+    },
+    "rodhypix": {
+        "folder_name": "frames",
+        "extension": ".rodhypix",
+        "recursive": false,
+        "first_only": true
+    },
+    "ins": {
+        "struct_folder": "struct",
+        "olex_prefix": "olex2_",
+        "auto_suffix": "_auto",
+        "extension": ".ins",
+        "recursive": false,
+        "first_only": true
+    },
+    "unit_cell": {
+        "ignore_wavelength": true
+    },
+    "clustering": {
+        "length_tolerance": 0.2,
+        "angle_tolerance": 0.5,
+        "unit_cell_source": "ins",
+        "method": "simple"
+    },
+    "cap": {
+        "enabled": true,
+        "peak_finding": true,
+        "multicrystal_indexing": true,
+        "unit_cell_refinement": true,
+        "indexing_command": "um ttt",
+        "smart_peak_hunting_command": "ph snogui_pars 1000 20 1 0 2 2 10 10 0 0 1 0 0.0 1000.0",
+        "par_prefix_preference": [
+            "pre_",
+            "wit_",
+            ""
+        ]
+    },
+    "ccdc": {
+        "enabled": false,
+        "search_mode": "reduced_cell"
+    },
+    "gemmi": {
+        "enabled": false,
+        "reduction_method": "niggli"
+    },
+    "size": {
+        "unit": "MB"
+    },
+    "debug": {
+        "enabled": true,
+        "search": true,
+        "rodhypix": true,
+        "ins": true,
+        "cell": true,
+        "size": true,
+        "cap": true,
+        "ccdc": true,
+        "gemmi": true,
+        "phase": true
+    },
+    "excel": {
+        "sheet_name": "Summary",
+        "date_format": "yyyy-mm-dd hh:mm:ss",
+        "size_format": "0.00",
+        "cell_format": "0.000000",
+        "freeze_panes": "A2"
+    },
+    "phase_colours": [
+        "FFFF00",
+        "00FF00",
+        "00FFFF",
+        "FF00FF",
+        "FFA500",
+        "ADD8E6",
+        "90EE90",
+        "DDA0DD",
+        "F4A460",
+        "FFB6C1",
+        "D3D3D3",
+        "FFD700",
+        "98FB98",
+        "87CEEB",
+        "EE82EE"
+    ]
+}
