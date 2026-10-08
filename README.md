@@ -27,8 +27,8 @@ This program provides an automated crystallographic data processing pipeline. It
 
 ## Technical Notes
 
-* Groups are unit-cell groupings based on parameter tolerances and do not strictly establish final phase identity.
-* CAP and CCDC integrations are designed with clear boundaries. CCDC and Gemmi functionalities are configurable and can be expanded in the future.
+* Groups are unit-cell groupings based on parameter tolerances.
+* CCDC and Gemmi functionalities are configurable and can be expanded in the future.
 
 ## AI
 * Written with the help of OpenAI
