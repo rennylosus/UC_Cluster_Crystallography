@@ -1,4 +1,4 @@
-# UC Crystallography Automation
+# UC Clustering Automation
 
 This program provides an automated crystallographic data processing pipeline. It recursively discovers target datasets within configured directories, parses metadata, does multi-crystal indexing via CrysAlisPro (CAP), performs unit-cell finding, and clusters the results into groups.
 
