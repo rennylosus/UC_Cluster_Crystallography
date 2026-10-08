@@ -20,8 +20,9 @@ This program provides an automated crystallographic data processing pipeline. It
 2. **Configuration**: Edit `config.py` to specify your data search paths (`ROOT_DIRS`), output directories, dataset naming conventions, and to toggle CAP or Gemmi integrations.
 3. **Execution**: Run the main script from this directory:
    ```bash
-   python main.py
+   python config_gui.py
    ```
+   Or run GUI.bat
    *Note: The configured output directory must be writable.*
 
 ## Technical Notes
