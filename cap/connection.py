@@ -171,6 +171,7 @@ class CAPConnection:
             )
 
         par_file = Path(par_file)
+        self.par_file = par_file  # added on 5-11-26
 
         if not par_file.exists():
 

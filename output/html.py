@@ -43,18 +43,13 @@ def _dataset_rows(dataset: Dataset) -> list[str]:
 
     metadata = [
         dataset.name,
+        str(dataset.cap_par_directory) if dataset.cap_par_directory is not None else "—",
+        str(dataset.cap_par_file) if dataset.cap_par_file is not None else "—",
         (
-            dataset.modification_date.strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            if dataset.modification_date is not None
-            else "—"
+            dataset.modification_date.strftime("%Y-%m-%d %H:%M:%S")
+            if dataset.modification_date is not None else "—"
         ),
-        (
-            f"{dataset.folder_size_mb:.2f}"
-            if dataset.folder_size_mb is not None
-            else "—"
-        ),
+        f"{dataset.folder_size_mb:.2f}" if dataset.folder_size_mb is not None else "—",
     ]
 
     ins_cell = _format_cell(
@@ -190,7 +185,7 @@ def write_html_report(
         if rows
         else (
             '<tr class="empty">'
-            '<td colspan="9">'
+            '<td colspan="11">'
             'No datasets processed yet.'
             '</td>'
             '</tr>'
@@ -292,6 +287,8 @@ tr.empty {{
 <thead>
 <tr>
     <th>Dataset</th>
+    <th>CAP PAR Directory</th>
+    <th>CAP PAR File</th>
     <th>Modification Date</th>
     <th>Folder Size (MB)</th>
     <th>INS-UC<br>a,b,c,α,β,γ</th>

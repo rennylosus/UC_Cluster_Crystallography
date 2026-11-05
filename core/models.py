@@ -144,3 +144,7 @@ class Dataset:
 
     # Additional results that we may add later
     results: dict[str, Any] = field(default_factory=dict)
+    
+    # Par files used fir indexing    # added on 5-11-26
+    cap_par_file: Path | None = None
+    cap_par_directory: Path | None = None

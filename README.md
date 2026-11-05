@@ -7,6 +7,8 @@ This program provides an automated crystallographic data processing pipeline. It
 * **Dataset Discovery**: Recursively searches root directories for target dataset folders (e.g., matching "RA3").
 * **Metadata Parsing**: Reads metadata from `.rodhypix` and SHELX `.ins` files (extracting `CELL` parameters).
 * **CrysAlisPro (CAP) Integration**: Runs automated multi-crystal indexing, peak finding, and cell refinement through a persistent CAP session.
+* **CAP Parameter File Selection**: Automatically discovers and selects appropriate .par files using a prioritised matching strategy (exact dataset-name match, prefix match, and fallback selection).
+* **Flexible Indexing**: Supports independent control of peak hunting and twin/multicrystal indexing, allowing unit-cell retrieval using CAP's um i command when multicrystal indexing is disabled. This enables processing without peak hunting, multicrystal indexing, or both.
 * **Unit Cell Reduction**: Utilizes Gemmi (Niggli reduction) for standardizing unit cells.
 * **Global Clustering**: Groups extracted unit cells across all datasets based on length and angle tolerances, identifying potential matching crystallographic phases.
 * **Live Reporting**: Generates a live-updating HTML report and a final Excel summary sheet with the clustering results.
