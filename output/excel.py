@@ -86,6 +86,8 @@ def _dataset_rows(dataset: Dataset) -> list[list]:
         rows.append(
             [
                 dataset.name,
+                str(dataset.cap_par_directory) if dataset.cap_par_directory is not None else None,
+                str(dataset.cap_par_file) if dataset.cap_par_file is not None else None,
                 dataset.modification_date,
                 dataset.folder_size_mb,
                 *ins,
@@ -126,6 +128,8 @@ def write_excel_report(
 
     headers = [
         "Dataset",
+        "CAP PAR Directory",
+        "CAP PAR File",
         "Modification Date",
         f"Folder Size ({SIZE_UNIT})",
 
@@ -176,23 +180,23 @@ def write_excel_report(
             worksheet.append(row)
 
     # Date
-    for cell in worksheet["B"][1:]:
+    for cell in worksheet["D"][1:]:
         if cell.value is not None:
             cell.number_format = EXCEL_DATE_FORMAT
 
     # Folder size
-    for cell in worksheet["C"][1:]:
+    for cell in worksheet["E"][1:]:
         if cell.value is not None:
             cell.number_format = EXCEL_SIZE_FORMAT
 
     # Unit-cell numeric columns:
-    # D:I   = INS
-    # K:P   = CAP
-    # T:Y   = Gemmi
+    # F:K   = INS
+    # M:R   = CAP
+    # V:AA  = Gemmi
     for column in (
-        list(range(4, 10))
-        + list(range(11, 17))
-        + list(range(20, 26))
+        list(range(6, 12))
+        + list(range(13, 19))
+        + list(range(22, 28))
     ):
         letter = get_column_letter(column)
 
@@ -203,7 +207,7 @@ def write_excel_report(
     # Indexing percentage
     # Store the value as a true percentage so Excel can filter,
     # calculate and chart it correctly.
-    for cell in worksheet["S"][1:]:
+    for cell in worksheet["U"][1:]:
         if cell.value is not None:
             cell.value = cell.value / 100.0
             cell.number_format = "0.00%"
@@ -223,38 +227,13 @@ def write_excel_report(
 
     # Column widths
     widths = {
-        "A": 24,
-        "B": 22,
-        "C": 18,
-
-        "D": 13,
-        "E": 13,
-        "F": 13,
-        "G": 13,
-        "H": 13,
-        "I": 13,
-
-        "J": 13,
-
-        "K": 13,
+        "A": 24, "B": 45, "C": 60, "D": 22, "E": 18,
+        "F": 13, "G": 13, "H": 13, "I": 13, "J": 13, "K": 13,
         "L": 13,
-        "M": 13,
-        "N": 13,
-        "O": 13,
-        "P": 13,
-
-        "Q": 19,
-        "R": 18,
-        "S": 15,
-
-        "T": 14,
-        "U": 14,
-        "V": 14,
-        "W": 14,
-        "X": 14,
-        "Y": 14,
-
-        "Z": 14,
+        "M": 13, "N": 13, "O": 13, "P": 13, "Q": 13, "R": 13,
+        "S": 19, "T": 18, "U": 15,
+        "V": 14, "W": 14, "X": 14, "Y": 14, "Z": 14, "AA": 14,
+        "AB": 14,
     }
 
     for column, width in widths.items():
@@ -278,7 +257,7 @@ def write_excel_report(
         cluster_fills = {}
 
         for row in range(2, worksheet.max_row + 1):
-            cluster = worksheet.cell(row=row, column=26).value
+            cluster = worksheet.cell(row=row, column=28).value
 
             if cluster is None:
                 continue
@@ -294,7 +273,7 @@ def write_excel_report(
 
             worksheet.cell(
                 row=row,
-                column=26,
+                column=28,
             ).fill = cluster_fills[cluster]
 
     except ImportError:
