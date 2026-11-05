@@ -5,24 +5,29 @@ All notable changes to this project are documented in this file.
 ## [1.1.0] - 2026-11-05
 
 ### Improved
-- Improved CrysAlisPro `.par` file discovery and selection in `datasets/processor.py`.
-- Added a prioritised selection strategy:
-  1. Exact dataset-name match.
-  2. Dataset-name prefix match.
-  3. Fallback to another available `.par` file when .par file has a different name from the root dir.
 
-- Output the selected `.par` file path and its directory in Excel and HTML.
-  1. Store and output the selected `.par` file path and its directory in `dataset.cap_par_file` and `dataset.cap_par_directory`.
-  2. Ensure the selected `.par` file is passed to CAP and used by `run_indexing()`.
+- **CrysAlisPro `.par` file discovery and selection**
+  - Improved `.par` file discovery and selection in `datasets/processor.py`.
+  - Added a prioritised selection strategy:
+    1. Exact dataset-name match.
+    2. Dataset-name prefix match.
+    3. Fallback to another available `.par` file when its name differs from the dataset root directory.
 
-- Improved UC indexing without peak hunting
-  1. When peak hunting and indexing are unchecked (False) in the GUI or config.py,
-     um i is executed in CAP to do indexing without time-consuming peak hunting. 
+- **CAP parameter file reporting and integration**
+  - Added storage of the selected `.par` file path and directory in `dataset.cap_par_file` and `dataset.cap_par_directory`.
+  - Added the selected `.par` file path and directory to Excel and HTML reports.
+  - Ensured the selected `.par` file is passed to CAP and used by `run_indexing()`.
+
+- **Flexible unit-cell indexing**
+  - Separated peak hunting and twin/multicrystal indexing into independently controlled operations.
+  - Added support for retrieving existing unit-cell information using CAP's `um i` command when twin/multicrystal indexing is disabled.
+  - Allows unit-cell processing with or without peak hunting and twin/multicrystal indexing, independently controlled through the GUI or `config.py`.
 
 ### Fixed
-- Excluded `*_cracker.par` files from fallback selection.
+
+- Excluded `*_cracker.par` files from fallback `.par` file selection.
 - Added debug warnings when a fallback `.par` file is selected.
 
-## [1.0.0] - Initial release - 2026-10-08
+## [1.0.0] - 2026-10-08
 
 - Initial release.
