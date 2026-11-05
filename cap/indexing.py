@@ -67,53 +67,56 @@ def run_indexing(
     parsed_result = None
 
     # --------------------------------------------------------
-    # Existing unit cell: no new peak hunting or indexing
+    # Peak hunting
     # --------------------------------------------------------
 
-    if not CAP_PEAK_FINDING and not CAP_MULTICRYSTAL_INDEXING:
-
-        debug_print(
-            "  Peak hunting and indexing disabled."
-        )
-        debug_print(
-            "  Retrieving existing unit cell using UM I..."
-        )
-
-        unit_cell_result = connection.execute("um i")
-
-    else:
-
-        # ----------------------------------------------------
-        # Normal indexing workflow
-        # ----------------------------------------------------
-
+    if CAP_PEAK_FINDING:
         peak_result = run_peak_hunting(connection)
+    else:
+        debug_print("  CAP peak finding is disabled.")
+
+    # --------------------------------------------------------
+    # Unit-cell indexing
+    # --------------------------------------------------------
+
+    if CAP_MULTICRYSTAL_INDEXING:
 
         unit_cell_result = run_multicrystal_indexing(
             connection
         )
+
+    else:
+
+        debug_print(
+            "  CAP multicrystal indexing is disabled."
+        )
+
+        debug_print(
+            "  Retrieving unit-cell information using UM I..."
+        )
+
+        unit_cell_result = connection.execute("um i")
 
     # --------------------------------------------------------
     # Parse CAP output
     # --------------------------------------------------------
 
     if unit_cell_result is not None:
-
         parsed_result = parse_cap_result(
             log_output=unit_cell_result.log_output,
             success=unit_cell_result.success,
         )
 
     debug_print("  CAP indexing workflow completed.")
-    
-    par_file = connection.par_file # added on 5-11-26
-    
+
+    par_file = connection.par_file
+
     return {
-    "peak_hunting": peak_result,
-    "unit_cell_finding": unit_cell_result,
-    "parsed_result": parsed_result,
-    "par_file": str(par_file) if par_file else None,
-    "par_directory": str(par_file.parent) if par_file else None,
+        "peak_hunting": peak_result,
+        "unit_cell_finding": unit_cell_result,
+        "parsed_result": parsed_result,
+        "par_file": str(par_file) if par_file else None,
+        "par_directory": str(par_file.parent) if par_file else None,
     }
 
 
