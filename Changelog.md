@@ -15,6 +15,10 @@ All notable changes to this project are documented in this file.
   1. Store and output the selected `.par` file path and its directory in `dataset.cap_par_file` and `dataset.cap_par_directory`.
   2. Ensure the selected `.par` file is passed to CAP and used by `run_indexing()`.
 
+- Improved UC indexing without peak hunting
+  1. When peak hunting and indexing are unchecked (False) in the GUI or config.py,
+     um i is executed in CAP to do indexing without time-consuming peak hunting. 
+
 ### Fixed
 - Excluded `*_cracker.par` files from fallback selection.
 - Added debug warnings when a fallback `.par` file is selected.
