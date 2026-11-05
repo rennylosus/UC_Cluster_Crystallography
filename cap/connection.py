@@ -1,289 +1,363 @@
-from __future__ import annotations
-
-from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-from cap.connection import CAPConnection
-from cap.indexing import run_indexing
-from config import (
-    CAP_ENABLED,
-    CAP_PAR_PREFIX_PREFERENCE,
-    DEBUG,
-    DEBUG_CAP,
-)
-from core.models import Dataset
-from crystallography.clustering import ClusterManager
-from crystallography.unit_cell import reduce_cells
-from datasets.cell_reader import read_unit_cell
-from datasets.ins_reader import find_ins_file
-from datasets.metadata import get_folder_size
-from datasets.rodhypix import find_first_rodhypix
+from config import CAP_ENABLED, DEBUG, DEBUG_CAP
+
+from cap_auto.cap_control import CAPInstance
 
 
 def debug_print(message: str) -> None:
-    if DEBUG:
+    """Print a debug message when CAP debugging is enabled."""
+
+    if DEBUG and DEBUG_CAP:
         print(message)
 
 
-def process_dataset(
-    folder: Path,
-    cap_connection: CAPConnection | None = None,
-    cluster_manager: ClusterManager | None = None,
-) -> Dataset:
-    dataset = Dataset(
-        name=folder.name,
-        folder=folder,
-    )
+class CAPConnection:
+    """
+    Project-level wrapper around cap-auto.CAPInstance.
 
-    dataset.rodhypix_file = find_first_rodhypix(folder)
+    A CAPConnection represents one CrysAlisPro session.
 
-    if dataset.rodhypix_file is not None:
+    Two workflows are supported:
+
+    1. Start CAP with an experiment:
+        CAPConnection(par_file=...)
+
+    2. Start CAP without an experiment and load one later:
+        CAPConnection()
+        connection.connect()
+        connection.load_experiment(...)
+    """
+
+    def __init__(
+        self,
+        par_file: Path | str | None = None,
+        start_now: bool = True,
+        raise_on_error: bool = False,
+        min_cap_version: str | None = None,
+        max_cap_version: str | None = None,
+    ) -> None:
+
+        self.enabled = CAP_ENABLED
+
+        self.par_file = (
+            Path(par_file)
+            if par_file is not None
+            else None
+        )
+
+        self.start_now = start_now
+        self.raise_on_error = raise_on_error
+
+        self.min_cap_version = min_cap_version
+        self.max_cap_version = max_cap_version
+
+        self.session: CAPInstance | None = None
+
+    def connect(self) -> bool:
+        """
+        Start CrysAlisPro.
+
+        If par_file was provided, it is passed to CAPInstance.
+
+        If par_file is None, CrysAlisPro is started in listen
+        mode without loading an experiment.
+        """
+
+        if not self.enabled:
+            debug_print(
+                "  CAP automation is disabled."
+            )
+            return False
+
+        # ----------------------------------------------------
+        # Validate experiment only if one was supplied
+        # ----------------------------------------------------
+
+        if self.par_file is not None:
+
+            if not self.par_file.exists():
+
+                raise FileNotFoundError(
+                    "Experiment file does not exist: "
+                    f"{self.par_file}"
+                )
+
+            debug_print(
+                "  Starting CrysAlisPro with: "
+                f"{self.par_file}"
+            )
+
+        else:
+
+            debug_print(
+                "  Starting CrysAlisPro "
+                "in listen mode without an experiment."
+            )
+
+        # ----------------------------------------------------
+        # Build CAPInstance arguments
+        # ----------------------------------------------------
+
+        cap_kwargs: dict[str, Any] = {
+            "start_now": self.start_now,
+            "raise_on_error": self.raise_on_error,
+        }
+
+        # Only pass par_file when one was supplied.
+        if self.par_file is not None:
+
+            cap_kwargs["par_file"] = (
+                str(self.par_file)
+            )
+
+        # Only pass version restrictions when explicitly
+        # configured. Otherwise cap-auto uses its defaults.
+        if self.min_cap_version is not None:
+
+            cap_kwargs["min_cap_version"] = (
+                self.min_cap_version
+            )
+
+        if self.max_cap_version is not None:
+
+            cap_kwargs["max_cap_version"] = (
+                self.max_cap_version
+            )
+
+        # ----------------------------------------------------
+        # Start CAP
+        # ----------------------------------------------------
+
         try:
-            dataset.modification_date = datetime.fromtimestamp(
-                dataset.rodhypix_file.stat().st_mtime
+
+            self.session = CAPInstance(
+                **cap_kwargs
             )
+
         except Exception as exc:
+
             print(
-                f"WARNING: Could not obtain modification date "
-                f"for {dataset.name}: {exc}"
+                "WARNING: Could not start "
+                f"CrysAlisPro: {exc}"
             )
 
-    dataset.folder_size_mb = get_folder_size(folder)
+            self.session = None
 
-    dataset.ins_file = find_ins_file(folder)
-    dataset.unit_cell = read_unit_cell(dataset.ins_file)
-    dataset.unit_cell_source = (
-        "INS" if dataset.unit_cell is not None else None
-    )
-
-    if dataset.unit_cell is not None:
-        debug_print(
-            f"  INS-UC: {dataset.unit_cell.as_tuple()}"
-        )
-
-    if CAP_ENABLED:
-        _process_cap(
-            dataset,
-            cap_connection=cap_connection,
-            cluster_manager=cluster_manager,
-        )
-
-    return dataset
-
-
-def _process_cap(
-    dataset: Dataset,
-    cap_connection: CAPConnection | None = None,
-    cluster_manager: ClusterManager | None = None,
-) -> None:
-    par_file = _find_par_file(dataset.folder)
-
-    if par_file is None:
-        print(
-            f"WARNING: No suitable .par file found "
-            f"for {dataset.name}"
-        )
-        return
-
-    owns_connection = False
-
-    if cap_connection is None:
-        connection = CAPConnection()
-        owns_connection = True
-
-        if not connection.connect():
-            print(
-                f"WARNING: Could not connect to CAP "
-                f"for {dataset.name}"
-            )
-            return
-    else:
-        connection = cap_connection
-
-        if connection.session is None:
-            print(
-                f"WARNING: Supplied CAP connection is "
-                f"not connected for {dataset.name}"
-            )
-            return
-
-    try:
-
-        dataset.cap_par_file = par_file
-        dataset.cap_par_directory = par_file.parent
-
-        if DEBUG_CAP:
-            print(f"  Dataset folder: {dataset.folder}")
-            print(f"  Selected PAR file: {par_file}")
-            print(f"  PAR directory: {par_file.parent}")
-            print(f"  PAR exists: {par_file.is_file()}")
-    
-#        if DEBUG_CAP:
-            print(
-                f"  CAP .par selected: {par_file.name}"
-            )
-
-        connection.load_experiment(par_file)
-
-        results = run_indexing(connection)
-        
-        # added on 5-11-26
-        dataset.cap_par_file = par_file
-        dataset.cap_par_directory = par_file.parent
-
-        dataset.cap_result = results["parsed_result"]
-
-
-        if dataset.cap_result is None:
-            print(
-                f"WARNING: CAP returned no parsed result "
-                f"for {dataset.name}"
-            )
-            return
-
-        domains = [
-            domain
-            for domain in dataset.cap_result.domains
-            if domain.unit_cell is not None
-        ]
+            return False
 
         debug_print(
-            f"  CAP domains: {len(domains)}"
+            "  CrysAlisPro started successfully."
         )
 
-        if not domains:
+        return True
+
+    def load_experiment(
+        self,
+        par_file: Path | str,
+    ) -> Any:
+        """
+        Load a CrysAlisPro experiment into an already-running
+        CAP session.
+
+        This uses cap-auto's load_experiment() method.
+        """
+
+        if self.session is None:
+
+            raise RuntimeError(
+                "CrysAlisPro is not connected."
+            )
+
+        par_file = Path(par_file)
+        self.par_file = par_file  # added on 5-11-26
+
+        if not par_file.exists():
+
+            raise FileNotFoundError(
+                "Experiment file does not exist: "
+                f"{par_file}"
+            )
+
+        debug_print(
+            "  Loading experiment: "
+            f"{par_file}"
+        )
+
+        result = self.session.load_experiment(
+            str(par_file)
+        )
+
+        debug_print(
+            "  Experiment load completed."
+        )
+
+        return result
+
+    def execute(
+        self,
+        command: str,
+        timeout: float | None = None,
+    ) -> Any:
+        """
+        Execute one CrysAlisPro command.
+        """
+
+        if self.session is None:
+
+            raise RuntimeError(
+                "CrysAlisPro is not connected."
+            )
+
+        debug_print(
+            f"  CAP command: {command}"
+        )
+
+        if timeout is None:
+
+            return self.session.execute(
+                command
+            )
+
+        return self.session.execute(
+            command,
+            timeout=timeout,
+        )
+
+    def execute_batch(
+        self,
+        commands: list[str],
+        timeout: float | None = None,
+    ) -> Any:
+        """
+        Execute multiple CrysAlisPro commands.
+        """
+
+        if self.session is None:
+
+            raise RuntimeError(
+                "CrysAlisPro is not connected."
+            )
+
+        debug_print(
+            f"  Executing {len(commands)} "
+            "CAP commands."
+        )
+
+        if timeout is None:
+
+            return self.session.execute_batch(
+                commands
+            )
+
+        return self.session.execute_batch(
+            commands,
+            timeout=timeout,
+        )
+
+    def execute_macro(
+        self,
+        commands: list[str],
+        timeout: float | None = None,
+    ) -> Any:
+        """
+        Execute a sequence of CrysAlisPro commands
+        as a macro.
+        """
+
+        if self.session is None:
+
+            raise RuntimeError(
+                "CrysAlisPro is not connected."
+            )
+
+        if timeout is None:
+
+            return self.session.execute_macro(
+                commands
+            )
+
+        return self.session.execute_macro(
+            commands,
+            timeout=timeout,
+        )
+
+    def get_status(self) -> Any:
+        """Return the current CAP status."""
+
+        if self.session is None:
+
+            return None
+
+        return self.session.get_status()
+
+    @property
+    def cap_version(self) -> Any:
+        """Return the CrysAlisPro version."""
+
+        if self.session is None:
+
+            return None
+
+        return self.session.cap_version
+
+    @property
+    def history(self) -> list[Any]:
+        """Return the CAP command history."""
+
+        if self.session is None:
+
+            return []
+
+        return self.session.history
+
+    def disconnect(self) -> None:
+        """Stop CrysAlisPro gracefully."""
+
+        if self.session is None:
+
             return
 
-        cap_cells = [
-            domain.unit_cell
-            for domain in domains
-        ]
-
-        reduced_cells = reduce_cells(cap_cells)
-
-        for domain, reduced_cell in zip(
-            domains,
-            reduced_cells,
-        ):
-            domain.reduced_unit_cell = reduced_cell
-
-            if cluster_manager is not None:
-                domain.cluster = cluster_manager.assign(
-                    reduced_cell
-                )
-
-            if DEBUG_CAP:
-                print(
-                    f"    Domain {domain.domain_number}:"
-                )
-                print(
-                    f"      CAP-UC: "
-                    f"{domain.unit_cell.as_tuple()}"
-                )
-                print(
-                    f"      Gemmi-UC: "
-                    f"{reduced_cell.as_tuple()}"
-                )
-                print(
-                    f"      Indexed: "
-                    f"{domain.indexed_reflections}"
-                )
-                print(
-                    f"      Total: "
-                    f"{domain.total_reflections}"
-                )
-                print(
-                    f"      Indexing: "
-                    f"{domain.indexing_percent}%"
-                )
-                print(
-                    f"      Cluster: "
-                    f"{domain.cluster}"
-                )
-
-    except Exception as exc:
-        print(
-            f"WARNING: CAP processing failed for "
-            f"{dataset.name}: {exc}"
+        debug_print(
+            "  Stopping CrysAlisPro..."
         )
 
-    finally:
-        if owns_connection:
-            connection.disconnect()
+        try:
+
+            self.session.stop()
+
+        except Exception as exc:
+
+            print(
+                "WARNING: Error while stopping "
+                f"CrysAlisPro: {exc}"
+            )
+
+        finally:
+
+            self.session = None
+
+        debug_print(
+            "  CrysAlisPro stopped."
+        )
 
 
-# modified with better logic on 5-11-26
-
-def _find_par_file(
+def find_par_file(
     dataset_folder: Path,
 ) -> Path | None:
     """
-    Find the CAP .par file.
+    Find the first CrysAlisPro .par file in a dataset folder.
 
-    Selection priority:
-    1. Exact dataset-name match using configured prefix preference.
-    2. First available .par file, excluding *_cracker.par.
-
+    The search is recursive because the exact location of
+    the experiment file may vary between datasets.
     """
 
-    dataset_name = dataset_folder.name
+    for file in dataset_folder.rglob("*.par"):
 
-    candidates: dict[str, Path] = {}
+        if file.is_file():
 
-    all_par_files = sorted(
-        file
-        for file in dataset_folder.rglob("*.par")
-        if file.is_file()
-        and not file.stem.lower().endswith("_cracker")
-    )
-
-    if DEBUG_CAP:
-        print(f"\n  Searching PAR files in: {dataset_folder}")
-
-        for file in all_par_files:
-            print(f"    Found: {file}")
-
-    # -----------------------------------------------------
-    # PRIORITY 1: EXACT DATASET-NAME MATCH
-    # -----------------------------------------------------
-
-    for file in all_par_files:
-        for prefix in CAP_PAR_PREFIX_PREFERENCE:
-            expected_name = f"{prefix}{dataset_name}.par"
-
-            if file.name.lower() == expected_name.lower():
-                candidates[prefix] = file
-                break
-
-    for prefix in CAP_PAR_PREFIX_PREFERENCE:
-        if prefix in candidates:
-            selected = candidates[prefix]
-
-            if DEBUG_CAP:
-                print(
-                    f"  Exact PAR match selected: {selected}"
-                )
-
-            return selected
-
-    # -----------------------------------------------------
-    # PRIORITY 2: FALLBACK TO ANY NON-CRACKER PAR FILE
-    # -----------------------------------------------------
-
-    if all_par_files:
-        selected = all_par_files[0]
-
-        if DEBUG_CAP:
-            print(
-                "  WARNING: No exact dataset-name match."
-            )
-            print(
-                f"  Fallback PAR selected: {selected}"
-            )
-
-        return selected
-
-    if DEBUG_CAP:
-        print("  No eligible PAR files found.")
+            return file
 
     return None
+
