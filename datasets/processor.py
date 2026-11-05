@@ -108,7 +108,17 @@ def _process_cap(
             return
 
     try:
+
+        dataset.cap_par_file = par_file
+        dataset.cap_par_directory = par_file.parent
+
         if DEBUG_CAP:
+            print(f"  Dataset folder: {dataset.folder}")
+            print(f"  Selected PAR file: {par_file}")
+            print(f"  PAR directory: {par_file.parent}")
+            print(f"  PAR exists: {par_file.is_file()}")
+    
+#        if DEBUG_CAP:
             print(
                 f"  CAP .par selected: {par_file.name}"
             )
@@ -116,7 +126,13 @@ def _process_cap(
         connection.load_experiment(par_file)
 
         results = run_indexing(connection)
+        
+        # added on 5-11-26
+        dataset.cap_par_file = par_file
+        dataset.cap_par_directory = par_file.parent
+
         dataset.cap_result = results["parsed_result"]
+
 
         if dataset.cap_result is None:
             print(
@@ -196,67 +212,78 @@ def _process_cap(
             connection.disconnect()
 
 
+# modified with better logic on 5-11-26
+
 def _find_par_file(
     dataset_folder: Path,
 ) -> Path | None:
     """
-    Find the CAP .par file using the configured prefix preference.
+    Find the CAP .par file.
 
-    For a dataset named RA3-13do, for example:
+    Selection priority:
+    1. Exact dataset-name match using configured prefix preference.
+    2. First available .par file, excluding *_cracker.par.
 
-        RA3-13do.par
-        wit_RA3-13do.par
-        pre_RA3-13do.par
-
-    the order is controlled by CAP_PAR_PREFIX_PREFERENCE
-    in config.py.
     """
+
     dataset_name = dataset_folder.name
 
     candidates: dict[str, Path] = {}
 
-    for file in dataset_folder.rglob("*.par"):
-        if not file.is_file():
-            continue
+    all_par_files = sorted(
+        file
+        for file in dataset_folder.rglob("*.par")
+        if file.is_file()
+        and not file.stem.lower().endswith("_cracker")
+    )
 
+    if DEBUG_CAP:
+        print(f"\n  Searching PAR files in: {dataset_folder}")
+
+        for file in all_par_files:
+            print(f"    Found: {file}")
+
+    # -----------------------------------------------------
+    # PRIORITY 1: EXACT DATASET-NAME MATCH
+    # -----------------------------------------------------
+
+    for file in all_par_files:
         for prefix in CAP_PAR_PREFIX_PREFERENCE:
-            expected_name = (
-                f"{prefix}{dataset_name}.par"
-            )
+            expected_name = f"{prefix}{dataset_name}.par"
 
             if file.name.lower() == expected_name.lower():
                 candidates[prefix] = file
                 break
 
     for prefix in CAP_PAR_PREFIX_PREFERENCE:
-        if prefix not in candidates:
-            continue
+        if prefix in candidates:
+            selected = candidates[prefix]
 
-        selected = candidates[prefix]
+            if DEBUG_CAP:
+                print(
+                    f"  Exact PAR match selected: {selected}"
+                )
+
+            return selected
+
+    # -----------------------------------------------------
+    # PRIORITY 2: FALLBACK TO ANY NON-CRACKER PAR FILE
+    # -----------------------------------------------------
+
+    if all_par_files:
+        selected = all_par_files[0]
 
         if DEBUG_CAP:
             print(
-                f"  .par candidate selected: "
-                f"{selected.name}"
+                "  WARNING: No exact dataset-name match."
             )
-
-            ignored = [
-                path.name
-                for other_prefix, path in candidates.items()
-                if other_prefix != prefix
-            ]
-
-            if ignored:
-                print(
-                    f"  .par candidates ignored: "
-                    f"{', '.join(sorted(ignored))}"
-                )
+            print(
+                f"  Fallback PAR selected: {selected}"
+            )
 
         return selected
 
+    if DEBUG_CAP:
+        print("  No eligible PAR files found.")
+
     return None
-
-
-__all__ = [
-    "process_dataset",
-]
