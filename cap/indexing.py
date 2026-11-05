@@ -54,32 +54,66 @@ def run_multicrystal_indexing(connection: CAPConnection) -> Any:
 
     return result
 
+# modified on 5-11-26 fir um i
 
 def run_indexing(
     connection: CAPConnection,
 ) -> dict[str, Any]:
+
     debug_print("  Starting CAP indexing workflow.")
 
-    peak_result = run_peak_hunting(connection)
-
-    unit_cell_result = run_multicrystal_indexing(
-        connection
-    )
-
+    peak_result = None
+    unit_cell_result = None
     parsed_result = None
 
+    # --------------------------------------------------------
+    # Existing unit cell: no new peak hunting or indexing
+    # --------------------------------------------------------
+
+    if not CAP_PEAK_FINDING and not CAP_MULTICRYSTAL_INDEXING:
+
+        debug_print(
+            "  Peak hunting and indexing disabled."
+        )
+        debug_print(
+            "  Retrieving existing unit cell using UM I..."
+        )
+
+        unit_cell_result = connection.execute("um i")
+
+    else:
+
+        # ----------------------------------------------------
+        # Normal indexing workflow
+        # ----------------------------------------------------
+
+        peak_result = run_peak_hunting(connection)
+
+        unit_cell_result = run_multicrystal_indexing(
+            connection
+        )
+
+    # --------------------------------------------------------
+    # Parse CAP output
+    # --------------------------------------------------------
+
     if unit_cell_result is not None:
+
         parsed_result = parse_cap_result(
             log_output=unit_cell_result.log_output,
             success=unit_cell_result.success,
         )
 
     debug_print("  CAP indexing workflow completed.")
-
+    
+    par_file = connection.par_file # added on 5-11-26
+    
     return {
-        "peak_hunting": peak_result,
-        "unit_cell_finding": unit_cell_result,
-        "parsed_result": parsed_result,
+    "peak_hunting": peak_result,
+    "unit_cell_finding": unit_cell_result,
+    "parsed_result": parsed_result,
+    "par_file": str(par_file) if par_file else None,
+    "par_directory": str(par_file.parent) if par_file else None,
     }
 
 
