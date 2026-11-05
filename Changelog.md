@@ -19,6 +19,6 @@ All notable changes to this project are documented in this file.
 - Excluded `*_cracker.par` files from fallback selection.
 - Added debug warnings when a fallback `.par` file is selected.
 
-## [1.0.0] - Initial release
+## [1.0.0] - Initial release - 2026-10-08
 
 - Initial release.
